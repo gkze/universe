@@ -183,7 +183,25 @@ runner selection, a 60-minute timeout, and cancellation of superseded runs.
 Actions are pinned to full commit hashes, checkout does not retain Git
 credentials, and the job has read-only repository permissions. The GitHub
 token is supplied only to the tool installation step for authenticated
-downloads. No shared build cache is configured initially.
+downloads.
+
+Pinned `actions/cache` restore/save actions maintain separate tool and Bun
+package-download caches. Only successful `main` runs save caches; PRs restore
+but do not save. Keys include the OS, architecture, runner image label, and
+owning manifests. Tool keys also include the seed manifest and Apple SDK Lua
+sources, so changed verification behavior invalidates installed SDKs. There
+are no fallback restore keys.
+
+The job isolates Mise installations, Cargo shims, and Rustup state under the
+runner temporary directory and caches them together. Bun caches downloaded
+packages, not `node_modules`. Installation commands still run on cache hits.
+SDK signature verification occurs when installing on a cache miss; a hit
+reuses an installation from a successful `main` run.
+
+The seed still downloads and verifies Mise each run. Zig build outputs and
+successful test results are not cached between jobs, so both quality commands
+continue to execute with fresh build state. Compare cold and warm hosted
+runs before claiming a speed improvement; tool archive transfer has a cost.
 
 Run `bin/mise -E dev run lint-workflows` to validate workflow syntax,
 expressions, action inputs, and embedded shell commands with actionlint.
