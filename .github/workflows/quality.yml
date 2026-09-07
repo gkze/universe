@@ -47,9 +47,10 @@ jobs:
         with:
           path: |
             ${{ env.MISE_DATA_DIR }}/installs
+            ${{ env.MISE_DATA_DIR }}/http-tarballs
             ${{ env.CARGO_HOME }}/bin
             ${{ env.RUSTUP_HOME }}
-          key: tools-v1-${{ runner.os }}-${{ runner.arch }}-macos-26-${{ hashFiles('seed.zon', 'mise.toml', 'mise.dev.toml', 'packages/mise-apple-sdk/**/*.lua') }}
+          key: tools-v2-${{ runner.os }}-${{ runner.arch }}-macos-26-${{ hashFiles('seed.zon', 'mise.toml', 'mise.dev.toml', 'packages/mise-apple-sdk/**/*.lua') }}
 
       - name: Restore Bun package downloads
         id: bun-cache
@@ -75,6 +76,7 @@ jobs:
         with:
           path: |
             ${{ env.MISE_DATA_DIR }}/installs
+            ${{ env.MISE_DATA_DIR }}/http-tarballs
             ${{ env.CARGO_HOME }}/bin
             ${{ env.RUSTUP_HOME }}
           key: ${{ steps.tools-cache.outputs.cache-primary-key }}
