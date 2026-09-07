@@ -192,11 +192,13 @@ owning manifests. Tool keys also include the seed manifest and Apple SDK Lua
 sources, so changed verification behavior invalidates installed SDKs. There
 are no fallback restore keys.
 
-The job isolates Mise installations, Cargo shims, and Rustup state under the
-runner temporary directory and caches them together. Bun caches downloaded
-packages, not `node_modules`. Installation commands still run on cache hits.
-SDK signature verification occurs when installing on a cache miss; a hit
-reuses an installation from a successful `main` run.
+The job isolates Mise installations, their HTTP artifact symlink targets, Cargo
+shims, and Rustup state under the runner temporary directory and caches them
+together. Mise HTTP tools link into `http-tarballs`; both directories must be
+restored, including targets of symlinks inside installed tool trees. Bun caches
+downloaded packages, not `node_modules`. Installation commands still run on
+cache hits. SDK signature verification occurs when installing on a cache miss; a
+hit reuses an installation from a successful `main` run.
 
 The seed still downloads and verifies Mise each run. Zig build outputs and
 successful test results are not cached between jobs, so both quality commands
