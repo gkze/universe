@@ -1,0 +1,45 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Bootstrap Mise
+        run: bin/seed.sh
+
+      - name: Trust repository configuration
+        run: bin/mise trust
+
+      - name: Install pinned tools
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+        run: bin/mise -E dev install
+
+      - name: Run lint, formatting checks, and tests
+        run: bin/mise -E dev run check
+
+      - name: Compare shipped seed binaries
+        run: bin/mise -E dev run check-seed-artifacts

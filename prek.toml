@@ -1,0 +1,41 @@
+minimum_prek_version = "0.5.2"
+default_install_hook_types = ["pre-commit", "commit-msg"]
+default_stages = ["pre-commit", "manual"]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "lint"
+name = "Lint and validate"
+language = "system"
+entry = "bin/mise -E dev run lint"
+pass_filenames = false
+always_run = true
+priority = 0
+
+[[repos.hooks]]
+id = "format-check"
+name = "Check formatting"
+language = "system"
+entry = "bin/mise -E dev run format-check"
+pass_filenames = false
+always_run = true
+priority = 1
+
+[[repos.hooks]]
+id = "test"
+name = "Test all components"
+language = "system"
+entry = "bin/mise -E dev run test"
+pass_filenames = false
+always_run = true
+priority = 2
+
+[[repos.hooks]]
+id = "commitlint"
+name = "Check Conventional Commit message"
+language = "system"
+entry = "bin/mise -E dev run lint-commit -- --edit"
+stages = ["commit-msg"]
+always_run = true

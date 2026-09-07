@@ -1,0 +1,24 @@
+# Legacy bootstrap artifacts retained from earlier seed versions.
+/.mise/
+
+# Build-time temporary sources and intermediate artifacts.
+/.build/
+
+# Bootstrap seed binaries - COMMITTED so cold machines do not need Zig.
+# Tangram binary (bin/tg) is materialized by build-tangram, not committed.
+/bin/tg
+/bin/mise
+
+# Zig build cache and output - materialized, not committed.
+.zig-cache/
+**/zig-out*
+
+# Downloaded Zig dependencies.
+/apps/seed/zig-pkg/
+
+# Legacy seed staging and current Tangram publication staging.
+/bin/.seeds.*/
+/bin/.tangram.*/
+
+# Installed JavaScript tooling dependencies.
+node_modules/

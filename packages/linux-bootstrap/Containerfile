@@ -1,0 +1,14 @@
+FROM ubuntu@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+
+# Host headers and runtime libraries; Mise supplies the compiler toolchains.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash ca-certificates cmake curl file git libcap-ng-dev libc6-dev \
+    libseccomp-dev libssl-dev \
+    libstdc++-13-dev \
+    libtinfo6 libxml2 libzstd1 make ninja-build perl pkg-config unzip \
+    xz-utils zlib1g-dev zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY test.sh /usr/local/bin/linux-bootstrap-test
+WORKDIR /workspace
+ENTRYPOINT ["bash", "/usr/local/bin/linux-bootstrap-test"]

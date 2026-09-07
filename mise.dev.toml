@@ -1,0 +1,322 @@
+# Optional development tools and checks.
+# Add to the default bootstrap configuration: mise -E dev.
+
+[tools]
+# Linux VM tooling for bootstrap testing on Apple silicon.
+"aqua:apple/container" = { version = "1.3.1", os = ["macos"] }
+
+# Repository quality tools (development only).
+prek = "0.5.2"
+shellcheck = "0.11.0"
+actionlint = "1.7.12"
+shfmt = "3.14.0"
+tombi = "1.5.2"
+rumdl = "0.2.66"
+jsonschema = "16.9.0"
+"github:oxc-project/oxc".version = "apps_v1.81.0"
+"github:oxc-project/oxc".matching = "oxfmt"
+"github:oxc-project/oxc".rename_exe = "oxfmt"
+
+# Toolchain for building the static bootstrap seed. Pinned for reproducibility.
+zig = "0.16.0"
+# Match compiler diagnostics and editor support to the seed compiler.
+zls = "0.16.0"
+
+# Lua plugin development tools.
+"aqua:JohnnyMorganz/StyLua" = "2.5.2"
+"aqua:LuaLS/lua-language-server" = "3.19.1"
+
+# LuaCATS definitions from the same revision as the bootstrap's Mise 2026.9.1.
+[tools."http:mise-lua-types"]
+version = "2026.9.1"
+url = "https://raw.githubusercontent.com/jdx/mise/8fe6385de7f73908ab5a6c9789f477a322eda3a5/crates/vfox/types/mise-plugin.lua"
+checksum = "sha256:5d36d97a9552bfd1c3646d798949c88cbe276be03c9cbdb9ce6c1eb3b3f6cf9f"
+bin = "mise-plugin.lua"
+bin_path = "types"
+
+# Pinned upstream LuaLS configuration schema, used only by quality checks.
+[tools."http:luarc-schema"]
+version = "057a387572e7"
+url = "https://raw.githubusercontent.com/LuaLS/vscode-lua/057a387572e7c50e3491c34e7f2e716aea967dfd/setting/schema.json"
+checksum = "sha256:78b541ad5a99d7f6ca2209396ba1e2a417556fa4ce0ad2877ccc47649789c608"
+bin = "luarc.schema.json"
+bin_path = "schemas"
+
+[env]
+# LuaLS uses this path directly, including when launched by an editor.
+MISE_LUA_TYPES.value = "{{ tools['http:mise-lua-types'].path }}/types"
+MISE_LUA_TYPES.tools = true
+
+# Source sets are shared by the lint and formatting tasks. No freshness cache:
+# hooks must check the current index/worktree even after another invocation.
+[task_templates.shell]
+sources = ["bin/*.sh", "apps/*/**/*.sh", "packages/*/**/*.sh", "tests/**/*.sh"]
+outputs = []
+
+[task_templates.toml]
+sources = ["*.toml", "packages/*/*.toml"]
+outputs = []
+
+[task_templates.json]
+sources = ["*.json", "packages/*/*.json"]
+outputs = []
+
+[tasks.format-apple-sdk]
+description = "Format plugin Lua source"
+dir = "{{ config_root }}/packages/mise-apple-sdk"
+run = "stylua ."
+
+[tasks.format-check-apple-sdk]
+description = "Check plugin Lua formatting"
+dir = "{{ config_root }}/packages/mise-apple-sdk"
+run = "stylua --check ."
+
+[tasks.diagnostics-apple-sdk]
+description = "Check plugin types and diagnostics with LuaLS"
+dir = "{{ config_root }}/packages/mise-apple-sdk"
+run = """\
+  lua-language-server --check=. --configpath=.luarc.json \
+  --checklevel=Warning --logpath=.lua-check\
+  """
+
+[tasks.line-length-apple-sdk]
+description = "Enforce an 80-column limit on plugin Lua source"
+env.LC_ALL = "C"
+dir = "{{ config_root }}/packages/mise-apple-sdk"
+run = "awk -f check-line-length.awk ./*.lua hooks/*.lua tests/*.lua"
+
+[tasks.schema-apple-sdk]
+description = "Validate the LuaLS configuration against its pinned schema"
+env.LUARC_SCHEMA = "{{ tools['http:luarc-schema'].path }}/schemas/luarc.schema.json"
+run = """\
+  jsonschema validate --default-dialect \
+  https://json-schema.org/draft/2020-12/schema \
+  \"$LUARC_SCHEMA\" packages/mise-apple-sdk/.luarc.json\
+  """
+
+[tasks.check-apple-sdk]
+description = "Check formatting, Lua diagnostics, and configuration"
+depends = [
+  "format-check-apple-sdk",
+  "diagnostics-apple-sdk",
+  "line-length-apple-sdk",
+  "schema-apple-sdk"
+]
+
+[tasks.lint-shell]
+extends = "shell"
+run = """\
+  shellcheck{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-shell]
+extends = "shell"
+run = """\
+  shfmt -w -i 2 -ci{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-check-shell]
+extends = "shell"
+run = """\
+  shfmt -d -i 2 -ci{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.lint-toml]
+extends = "toml"
+run = """\
+  tombi lint --error-on-warnings{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-toml]
+extends = "toml"
+run = """\
+  tombi format{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-check-toml]
+extends = "toml"
+run = """\
+  tombi format --check{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-json]
+extends = "json"
+run = """\
+  oxfmt{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.format-check-json]
+extends = "json"
+run = """\
+  oxfmt --check{% for file in task_source_files() %} \
+  {{ file | quote }}{% endfor %}\
+  """
+
+[tasks.lint-markdown]
+run = "rumdl check --no-cache --respect-gitignore ."
+
+[tasks.lint-workflows]
+description = "Validate GitHub Actions workflows and embedded shell commands"
+run = "actionlint"
+
+[tasks.format-markdown]
+run = "rumdl fmt --no-cache --respect-gitignore ."
+
+[tasks.format-check-markdown]
+run = "rumdl fmt --check --no-cache --respect-gitignore ."
+
+[tasks.lint-seed]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build lint check"
+
+[tasks.format-seed]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build fmt"
+
+[tasks.format-check-seed]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build fmt-check"
+
+[tasks.test-seed]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build test-all --test-timeout 30s --summary all"
+
+[tasks.check-seed-artifacts]
+description = "Compare all four release builds against the tracked seed binaries"
+dir = "{{ config_root }}/apps/seed"
+run = "zig build check-artifacts --summary all"
+
+[tasks.test-seed-binary]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build test-binary"
+
+[tasks.test-apple-sdk]
+run = "bash packages/mise-apple-sdk/tests/integration.sh"
+
+# Separate processes and fixtures keep unrelated suites independently runnable.
+[tasks.test-seed-build]
+dir = "{{ config_root }}/apps/seed"
+run = "zig build test-publication"
+
+[tasks.test-seed-dispatch]
+run = "bash apps/seed/tests/dispatch.sh"
+
+[tasks.test-tangram-build]
+run = "bash packages/tangram/tests/build.sh"
+
+[tasks.test-bootstrap-mise]
+run = "bash tests/bootstrap/mise.sh"
+
+[tasks.test-bootstrap-cleanup]
+run = "bash tests/bootstrap/cleanup.sh"
+
+[tasks.test-bootstrap]
+depends = [
+  "test-seed-build",
+  "test-seed-dispatch",
+  "test-tangram-build",
+  "test-bootstrap-mise",
+  "test-bootstrap-cleanup"
+]
+
+[tasks.test-prek]
+depends = ["install-commitlint"]
+run = "bash tests/tooling/prek.sh"
+
+[tasks.install-commitlint]
+description = "Install locked commit-message tooling with Bun"
+dir = "{{ config_root }}"
+run = "bun install --frozen-lockfile --ignore-scripts"
+
+[tasks.lint-commit]
+description = "Lint commit messages with the Conventional Commits config"
+depends = ["install-commitlint"]
+dir = "{{ config_root }}"
+run = "bun --bun node_modules/@commitlint/cli/cli.js --config .commitlintrc.json"
+
+[tasks.validate-tasks]
+run = [
+  "env -u MISE_ENV mise tasks validate",
+  "mise -E dev tasks validate",
+  "prek validate-config prek.toml"
+]
+
+[tasks.lint]
+description = "Lint repository source and validate configuration"
+depends = [
+  "lint-shell",
+  "lint-toml",
+  "lint-markdown",
+  "lint-workflows",
+  "lint-seed",
+  "diagnostics-apple-sdk",
+  "line-length-apple-sdk",
+  "schema-apple-sdk",
+  "validate-tasks"
+]
+
+[tasks.format]
+description = "Format repository source, configuration, and documentation"
+depends = [
+  "format-shell",
+  "format-toml",
+  "format-markdown",
+  "format-json",
+  "format-seed",
+  "format-apple-sdk"
+]
+
+[tasks.format-check]
+description = "Check repository formatting without modifying source"
+depends = [
+  "format-check-shell",
+  "format-check-toml",
+  "format-check-markdown",
+  "format-check-json",
+  "format-check-seed",
+  "format-check-apple-sdk"
+]
+
+[tasks.test]
+description = "Run seed, plugin, bootstrap, and hook integration tests"
+depends = [
+  "test-seed",
+  "test-seed-binary",
+  "test-apple-sdk",
+  "test-bootstrap",
+  "test-prek",
+  "test-linux-runner"
+]
+
+[tasks.check]
+description = "Check all repository lint, formatting, and tests"
+depends = ["lint", "format-check", "test"]
+
+[tasks.test-linux-arm64]
+description = "Compile Tangram in a disposable native Linux ARM64 VM"
+run = "bash packages/linux-bootstrap/run.sh arm64"
+
+[tasks.test-linux-x64]
+description = "Compile Tangram in a disposable Linux x86-64 VM using Rosetta"
+run = "bash packages/linux-bootstrap/run.sh x64"
+
+[tasks.test-linux-runner]
+description = "Check Linux runner isolation and failure handling with fixtures"
+run = "bash packages/linux-bootstrap/tests/run.sh"
+
+[tasks.build-seed]
+description = "Build and publish the Zig bootstrap seed for all platforms"
+dir = "{{ config_root }}/apps/seed"
+run = "zig build publish"
+
+[tasks.check-seed]
+description = "Check seed formatting, lint, compiler diagnostics, and tests"
+dir = "{{ config_root }}/apps/seed"
+run = "zig build quality --test-timeout 30s --summary all"

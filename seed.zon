@@ -1,0 +1,22 @@
+.{
+    .url = "https://github.com/jdx/mise/releases/download/v{v}/mise-v{v}-{p}.tar.gz",
+    .version = "2026.9.1",
+    .hashes = .{
+        .@"linux-x64" = .{
+            .tarball = "063dda9149ab6be53da877c2d176afe0eac68e64cf8ca295bd0528720701c65d",
+            .binary = "c98423c8470d6dc416d9f7036d0646d8ef5ae92ad9186907f8fcc84cbe7db4ea",
+        },
+        .@"linux-arm64" = .{
+            .tarball = "98d2ea7b82dd966afdb8a9f4e9edbca771acf2a30d2842bfc0efdb7b61c886a3",
+            .binary = "0ef0a778eaa8599f3e90a8a0979c9fc3f79922cafb5fa6d39f366d974da33bba",
+        },
+        .@"macos-x64" = .{
+            .tarball = "eed76838c68aa49b7bf07c468dd4993855bbb342a4442f67355b6ffbe746e4d4",
+            .binary = "0718a2aa14a96545a287f77a172d700247bb2d33016e5cf29fce1a05e45ac47a",
+        },
+        .@"macos-arm64" = .{
+            .tarball = "bfea0ab417b48c1e8b99412fcaf20ce17424a3286a8766d7d2b0051fe321d565",
+            .binary = "3cfbe3295dba1a7e43bd02653517a8cc21135ba91f0635b45c98f1ebecc5513f",
+        },
+    },
+}

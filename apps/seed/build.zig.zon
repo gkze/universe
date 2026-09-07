@@ -1,0 +1,13 @@
+.{
+    .name = .universe_seed,
+    .fingerprint = 0x1bba0938d309d070,
+    .version = "0.0.0",
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .zlinter = .{
+            .url = "https://github.com/KurtWagner/zlinter/archive/8b10b45d33c684be4f869baf95a37c282e9db750.tar.gz",
+            .hash = "zlinter-0.0.1-OjQ08doQDADkvkcRq2ONICvDheGl2onZzS5upWDxFNnA",
+        },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "main.zig", "publication.zig", "tests" },
+}

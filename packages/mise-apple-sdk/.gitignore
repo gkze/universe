@@ -1,0 +1,3 @@
+# Ignore definition links created by the former setup task.
+/types
+/.lua-check/

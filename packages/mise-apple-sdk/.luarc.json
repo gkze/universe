@@ -1,0 +1,6 @@
+{
+  "runtime.version": "Lua 5.1",
+  "workspace.library": ["${env:MISE_LUA_TYPES}"],
+  "workspace.checkThirdParty": false,
+  "format.enable": false
+}

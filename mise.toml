@@ -1,0 +1,123 @@
+# universe toolchain root.
+#
+# Boundary rule: Mise provisions ONLY the bootstrap floor - the toolchain needed
+# to build Tangram from source, plus the Tangram source pin below. Every PROJECT
+# toolchain (LLVM, Go, ...) is owned by Tangram as content-addressed artifacts,
+# not by Mise. Do not add project tools here.
+
+# Tangram source is pinned to an exact commit, not a moving branch, so the
+# bootstrap inputs have fixed identities.
+[env]
+# Prepend the repo's bin/ to PATH so a freshly built `tg` is on PATH.
+_.path = "./bin"
+
+[plugins]
+"vfox:apple-sdk" = "./packages/mise-apple-sdk"
+
+[tools]
+# Bootstrap compiler. Tangram main requires rust-version >= 1.91 (edition 2024).
+rust = "1.98.1"
+
+# JS runtime required by Tangram's build scripts (bun install, bunx tsc, oxlint,
+# bundling). Tangram never invokes Node directly - Bun only.
+bun = "1.4.2"
+
+# Verified Apple SDK for macOS bootstrap builds.
+apple-sdk = { version = "15.5-24F74", os = ["macos"] }
+
+# Verified source input; builds use a writable copy of this installation.
+[tools."http:tangram-source"]
+version = "21038fa4cafb9f5edef8d99cabd96a15d21c2129"
+url = "https://github.com/tangramdotdev/tangram/archive/{{ version }}.tar.gz"
+checksum = "sha256:9f6ff74b2227a1dc53e5958adf90c17c0c4a0926050eb44f7b3ff6cb30ce03ce"
+strip_components = 1
+bin_path = ".mise-no-bin"
+
+# Official prebuilt LLVM bootstrap toolchain.
+[tools."http:llvm"]
+version = "22.1.8"
+os = ["macos", "linux"]
+strip_components = 1
+bin_path = "bin"
+
+[tools."http:llvm".platforms.macos-arm64]
+url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-macOS-ARM64.tar.xz"
+checksum = "sha256:f260f4f7c0d430828a81ae8a3826a1d63fc0963ec2459489308cc23b1f7eab4f"
+
+[tools."http:llvm".platforms.linux-arm64]
+url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-ARM64.tar.xz"
+checksum = "sha256:805efad2bb91cb4967fa569e0881d10c0f69c04461cf671cccbae19f547acc34"
+
+[tools."http:llvm".platforms.linux-x64]
+url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz"
+checksum = "sha256:df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384"
+
+# Match Tangram's v8 crate and release profile on each supported host.
+[tools."http:rusty-v8"]
+version = "152.2.0"
+os = ["macos", "linux"]
+bin = "librusty_v8.a"
+bin_path = "lib"
+
+[tools."http:rusty-v8".platforms.macos-arm64]
+url = "https://github.com/denoland/rusty_v8/releases/download/v152.2.0/librusty_v8_release_aarch64-apple-darwin.a.gz"
+checksum = "sha256:a4a5484444ad4b5f10dc7bed141236dd9dbeabf2006d14520f19b935d4db4227"
+
+[tools."http:rusty-v8".platforms.linux-arm64]
+url = "https://github.com/denoland/rusty_v8/releases/download/v152.2.0/librusty_v8_release_aarch64-unknown-linux-gnu.a.gz"
+checksum = "sha256:c40196bbf182532e583f65b7daf0196fdbb3354e6fac59b31d0539c20f931f3d"
+
+[tools."http:rusty-v8".platforms.linux-x64]
+url = "https://github.com/denoland/rusty_v8/releases/download/v152.2.0/librusty_v8_release_x86_64-unknown-linux-gnu.a.gz"
+checksum = "sha256:b6683e9afcb77fbd8cb2c3acf45d34d52029ab216b332522c95179c12f0fed3c"
+
+# Match the rootfs release used by the pinned Tangram sandbox build.
+[tools."http:tangram-sandbox"]
+version = "2026.07.29"
+os = ["linux"]
+strip_components = 0
+bin_path = ".mise-no-bin"
+
+[tools."http:tangram-sandbox".platforms.linux-arm64]
+url = "https://github.com/tangramdotdev/bootstrap/releases/download/v2026.07.29/sandbox_aarch64_linux.tar.zst"
+checksum = "sha256:7c7274baf07486c8314aa06e7bc7b0d69f2f39461ccbfa071f3b1a8b4cd26312"
+
+[tools."http:tangram-sandbox".platforms.linux-x64]
+url = "https://github.com/tangramdotdev/bootstrap/releases/download/v2026.07.29/sandbox_x86_64_linux.tar.zst"
+checksum = "sha256:1a2ab509a1a2ab7e1f04bfd07cf5596ee27c8197b7f0e0ebe1ac037c07eb61bf"
+
+[tasks.build-tangram]
+description = "Build pinned Tangram with bootstrap toolchains"
+dir = "{{ config_root }}"
+run = "bash packages/tangram/build.sh"
+
+[tasks.build-tangram.env]
+TANGRAM_SOURCE = "{{ tools['http:tangram-source'].path }}"
+CC = "{{ tools['http:llvm'].path }}/bin/clang"
+CXX = "{{ tools['http:llvm'].path }}/bin/clang++"
+AR = "{{ tools['http:llvm'].path }}/bin/llvm-ar"
+RANLIB = "{{ tools['http:llvm'].path }}/bin/llvm-ranlib"
+TANGRAM_LINKER = "{{ tools['http:llvm'].path }}/bin/{% if os() == 'macos' %}ld64.lld{% else %}ld.lld{% endif %}"
+RUSTY_V8_ARCHIVE = "{{ tools['http:rusty-v8'].path }}/lib/librusty_v8.a"
+TANGRAM_SANDBOX_ROOTFS = "{% if os() == 'linux' %}{{ tools['http:tangram-sandbox'].path }}{% endif %}"
+
+# Cleanup tasks
+
+[tasks.clean-zig]
+description = "Remove Zig build artifacts (zig-out, .zig-cache)"
+dir = "{{ config_root }}"
+run = "rm -rf -- apps/*/zig-out apps/*/.zig-cache"
+
+[tasks.clean-tangram]
+description = "Remove Tangram build artifacts (source, target, binary)"
+dir = "{{ config_root }}"
+run = ["rm -rf -- .build/tangram", "rm -f -- bin/tg"]
+
+[tasks.clean-mise]
+description = "Remove the repository bootstrap Mise binary (shared tools are retained)"
+dir = "{{ config_root }}"
+run = "rm -f -- bin/mise"
+
+[tasks.clean]
+description = "Remove intermediate build artifacts (Zig, Tangram)"
+depends = ["clean-zig", "clean-tangram"]
