@@ -27,11 +27,36 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set isolated dependency directories
+        run: |
+          printf '%s\n' \
+            "MISE_DATA_DIR=$RUNNER_TEMP/mise" \
+            "CARGO_HOME=$RUNNER_TEMP/cargo" \
+            "RUSTUP_HOME=$RUNNER_TEMP/rustup" \
+            "BUN_INSTALL_CACHE_DIR=$RUNNER_TEMP/bun-cache" >> "$GITHUB_ENV"
+
       - name: Bootstrap Mise
         run: bin/seed.sh
 
       - name: Trust repository configuration
         run: bin/mise trust
+
+      - name: Restore pinned tools
+        id: tools-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.MISE_DATA_DIR }}/installs
+            ${{ env.CARGO_HOME }}/bin
+            ${{ env.RUSTUP_HOME }}
+          key: tools-v1-${{ runner.os }}-${{ runner.arch }}-macos-26-${{ hashFiles('seed.zon', 'mise.toml', 'mise.dev.toml', 'packages/mise-apple-sdk/**/*.lua') }}
+
+      - name: Restore Bun package downloads
+        id: bun-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: bun-v1-${{ runner.os }}-${{ runner.arch }}-macos-26-${{ hashFiles('mise.toml', 'bun.lock') }}
 
       - name: Install pinned tools
         env:
@@ -43,3 +68,20 @@ jobs:
 
       - name: Compare shipped seed binaries
         run: bin/mise -E dev run check-seed-artifacts
+
+      - name: Save pinned tools
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.tools-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.MISE_DATA_DIR }}/installs
+            ${{ env.CARGO_HOME }}/bin
+            ${{ env.RUSTUP_HOME }}
+          key: ${{ steps.tools-cache.outputs.cache-primary-key }}
+
+      - name: Save Bun package downloads
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.bun-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: ${{ steps.bun-cache.outputs.cache-primary-key }}
